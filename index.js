@@ -6,6 +6,8 @@ import { validationResult } from "express-validator";
 import {registerValidator} from "./validations/auth.js";
 
 import userModel from './models/User.js'
+import checkAuth from './utils/checkAuth.js'
+import User from "./models/User.js";
 
 mongoose.connect('mongodb+srv://admin:QWE123@cluster0.2q58cpl.mongodb.net/blog?retryWrites=true&w=majority').then(()=>
     console.log(
@@ -17,6 +19,45 @@ const app = express();
 
 app.use(express.json());
 
+app.post('/auth/login',registerValidator, async (req,res)=>{
+try {
+    const user = await userModel.findOne({email: req.body.email})
+
+    if(!user){
+        return res.status(404).json({
+            message: "пользователь не найден"
+        })
+    }
+
+    const isValid = await bcrypt.compare(req.body.password, user._doc.passwordHash )
+
+    if(!isValid){
+        return res.status(400).json({
+            message: "Неверный логин или пароль"
+        })
+    }
+
+    const token = jwt.sign({
+        _id: user._id,
+       }, 'qwe123',{
+        expiresIn: '30d'
+       },
+    )
+    const { passwordHash, ...userData } = user._doc
+
+    res.json({
+        ...userData,
+        token
+    })
+
+} catch (error) {
+    console.log(error)
+res.status(500).json({
+    message: 'Не удалось авторизоваться'
+})
+}
+
+})
 
 app.post('/auth/register',registerValidator, async (req,res)=>{
    try {
@@ -64,7 +105,27 @@ app.post('/auth/register',registerValidator, async (req,res)=>{
 })
 
 
+app.get('/auth/me', checkAuth, async (req,res)=>{
+    try {
+        const user = await userModel.findById(req.userId)
 
+        if(!user){
+            return res.status(404).json({
+                message: 'пользователь не найден'
+            })
+        }
+        const {passwordHash, ...userData} = user._doc
+
+        res.json({
+            userData,
+        })
+    } catch (error) {
+        console.log(error)
+    res.status(500).json({
+        message: 'Нет доступа'
+    })
+}
+})
 
 
 app.listen(4444, (err)=>{
