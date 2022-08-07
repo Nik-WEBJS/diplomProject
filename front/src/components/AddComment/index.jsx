@@ -7,6 +7,7 @@ import Avatar from "@mui/material/Avatar";
 import Button from "@mui/material/Button";
 
 export const Index = () => {
+ 
   return (
     <>
       <div className={styles.root}>
